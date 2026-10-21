@@ -21,11 +21,63 @@ Inicia sesión con un usuario de tu tabla `users`.
 |---|---|
 | Emulador Android | `http://10.0.2.2:3000/api` (ya viene por defecto en modo desarrollo) |
 | Celular físico | `http://IP-DE-TU-PC:3000/api` (cambia `DEV_URL`; PC y celular en la misma red) |
-| Versión release | `https://TU-SERVIDOR/api` (cambia `PROD_URL`) |
+| Versión release | `https://TU-SERVIDOR/api` (cambia `PROD_URL` a la URL HTTPS real de tu API) |
 
 - En **debug** Android permite HTTP; en **release** solo HTTPS, así que publica la API con HTTPS antes de generar el APK.
 - Si usas celular físico por USB, también sirve `adb reverse tcp:3000 tcp:3000` y la URL `http://localhost:3000/api`.
 - Agrega la IP/origen a `CORS_ORIGINS` solo si pruebas desde navegador; las apps nativas no usan CORS.
+
+## Docker en la app
+
+La app Android corre en un emulador o celular, no en un contenedor. Docker se usa para lo que sí es de servidor: las pruebas, el lint y la compilación firmada del release. Los archivos están en la raíz del proyecto:
+
+| Archivo | Para qué sirve |
+|---|---|
+| `Dockerfile.dev` y `docker-compose.yml` | Node 22 para correr Metro, las pruebas (`test`) y el lint (`lint`) |
+| `Dockerfile.build` | Imagen con JDK 17, Android SDK, NDK y Node 22 para generar el AAB/APK de release |
+| `.dockerignore` | Deja fuera `node_modules`, carpetas de compilación y llaves de firma |
+| `.gitattributes` | Fuerza saltos de línea LF para que `gradlew` funcione dentro de Linux |
+| `docs/DOCKER.md` | Esta misma guía con más detalle |
+
+### Desarrollo
+```
+docker compose run --rm test      # pruebas Jest
+docker compose run --rm lint      # ESLint
+```
+Para **Metro** hay dos formas:
+
+| Forma | Comandos | Cuándo usarla |
+|---|---|---|
+| En Windows (recomendada) | `npm start` | Detecta tus cambios al instante |
+| En Docker | `docker compose up -d metro` | Si el proyecto está dentro de WSL; en `C:\` a veces no ve los cambios y hay que ejecutar `docker compose restart metro` |
+
+Luego, con el celular conectado por USB y la depuración USB activa:
+```
+adb reverse tcp:8081 tcp:8081
+npx react-native run-android --no-packager --active-arch-only
+```
+- `--no-packager` evita abrir otro Metro (usa el que ya corre en el puerto 8081).
+- `--active-arch-only` compila solo la arquitectura de tu dispositivo; sin esta opción, en equipos con poca memoria la compilación puede fallar con "insufficient memory".
+- Si cambias archivos de `src/`, la app se actualiza sola (Fast Refresh); si no, agita el celular y elige **Reload**. Solo recompila (`run-android`) cuando cambias algo nativo (`android/`, permisos o librerías nuevas).
+
+### Compilar el release con Docker (AAB firmado)
+1. Una sola vez, construye la imagen: `docker build -f Dockerfile.build -t healthnexus-android-build .`
+2. Guarda el `.jks` y un `keystore.properties` **fuera del proyecto** (por ejemplo `C:\llaves\`); en ese archivo usa `storeFile=/secrets/healthnexus-upload.jks`.
+3. Pon la URL HTTPS real en `PROD_URL` (`src/config.js`).
+4. Compila (PowerShell):
+   ```
+   docker run --rm `
+     -v "${PWD}:/app" `
+     -v hn_node_modules:/app/node_modules `
+     -v hn_gradle_cache:/root/.gradle `
+     -v "C:/llaves/healthnexus-upload.jks:/secrets/healthnexus-upload.jks:ro" `
+     -v "C:/llaves/keystore.properties:/app/android/keystore.properties:ro" `
+     healthnexus-android-build `
+     sh -c "npm ci && npm run release:aab"
+   ```
+5. El AAB queda en `android/app/build/outputs/bundle/release/`. Sube `hnVersionCode` en cada publicación.
+
+La llave de firma se monta solo mientras se compila; nunca entra a la imagen ni a Git (`.gitignore` y `.dockerignore` excluyen `*.jks` y `keystore.properties`). Asigna a Docker Desktop al menos 8 GB de memoria.
 
 ## Publicar en Google Play
 Guía completa, textos de la ficha y lista final: **[docs/PLAY_STORE.md](docs/PLAY_STORE.md)**. Resumen:
