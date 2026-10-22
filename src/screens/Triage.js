@@ -1,71 +1,294 @@
-import { mensajeApi } from '../utils/errors';
-import React, { useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
-import { createPatient } from '../api';
-import { Button, ErrorBox, Field, Ico, Screen, SectionTitle, colors } from '../components/ui';
+import React, { useEffect, useState } from 'react';
+import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { getTriagePatients, setTriage } from '../api';
+import useFetch from '../hooks/useFetch';
+import {
+  Badge,
+  Card,
+  Empty,
+  ErrorBox,
+  Field,
+  Loading,
+  Screen,
+  colors,
+} from '../components/ui';
+import { TRIAGE, statusLabel, triageInfo } from '../utils/triage';
 
-const LEVELS = [
-  { id: 'rojo', label: 'Crítico', color: '#DC2626', icon: 'alert-circle-outline', desc: 'Atención inmediata' },
-  { id: 'amarillo', label: 'Urgente', color: '#F59E0B', icon: 'time-outline', desc: '15 min espera' },
-  { id: 'verde', label: 'Leve', color: '#16A34A', icon: 'checkmark-circle', desc: '60 min espera' },
+// true  = el diagnóstico presuntivo es obligatorio para clasificar
+// false = es opcional (se envía solo si se escribe)
+const DIAGNOSTICO_OBLIGATORIO = true;
+const MIN_CARACTERES = 3;
+
+const FILTERS = [
+  ['', 'Todos'],
+  ['sin', 'Sin clasificar'],
+  ...Object.entries(TRIAGE).map(([id, t]) => [id, t.label]),
 ];
 
-export default function Triage({ navigation }) {
-  const [name, setName] = useState('');
-  const [age, setAge] = useState('');
-  const [reason, setReason] = useState('');
-  const [level, setLevel] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+export default function Triage() {
+  const [q, setQ] = useState('');
+  const [query, setQuery] = useState('');
+  const [nivel, setNivel] = useState('');
+  const [open, setOpen] = useState(null);
+  const [motivo, setMotivo] = useState('');
+  const [diagnostico, setDiagnostico] = useState('');
+  const [formError, setFormError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [actionError, setActionError] = useState('');
+  const { data, loading, error, reload } = useFetch(
+    () => getTriagePatients({ q: query, nivel }),
+    [query, nivel],
+  );
+  const list = data || [];
 
-  const submit = async () => {
-    const edad = Number(age);
-    if (!name.trim()) return setError('Ingresa el nombre del paciente.');
-    if (age === '' || !Number.isInteger(edad) || edad < 0 || edad > 120) return setError('Ingresa una edad válida (0 a 120).');
-    if (reason.trim().length < 3) return setError('Describe el motivo de consulta.');
-    if (!level) return setError('Selecciona un nivel de triage.');
-    setLoading(true); setError('');
+  useEffect(() => {
+    const t = setTimeout(() => setQuery(q.trim()), 400);
+    return () => clearTimeout(t);
+  }, [q]);
+
+  // Abre o cierra el panel de un paciente y precarga lo que ya tenga su admisión
+  const toggle = p => {
+    if (open === p.id) {
+      setOpen(null);
+      return;
+    }
+    setOpen(p.id);
+    setMotivo(p.reason || '');
+    setDiagnostico(p.diagnosticoPresuntivo || '');
+    setFormError('');
+    setActionError('');
+  };
+
+  const validar = () => {
+    if (motivo.trim().length < MIN_CARACTERES) {
+      return 'Escribe el motivo de consulta (mínimo 3 caracteres).';
+    }
+    if (
+      DIAGNOSTICO_OBLIGATORIO &&
+      diagnostico.trim().length < MIN_CARACTERES
+    ) {
+      return 'Escribe el diagnóstico presuntivo (mínimo 3 caracteres).';
+    }
+    return null;
+  };
+
+  const apply = async (p, level) => {
+    setBusy(true);
+    setActionError('');
     try {
-      await createPatient({ name: name.trim(), age: edad, reason: reason.trim(), triageLevel: level });
-      Alert.alert('Listo', 'Paciente registrado correctamente.');
-      navigation.navigate('Patients');
+      await setTriage(p.id, level, {
+        motivo: motivo.trim(),
+        diagnosticoPresuntivo: diagnostico.trim(),
+      });
+      setOpen(null);
+      reload(true);
     } catch (e) {
-      setError(mensajeApi(e));
+      setActionError(e.message);
     } finally {
-      setLoading(false);
+      setBusy(false);
     }
   };
 
+  const choose = (p, level) => {
+    const err = validar();
+    if (err) {
+      setFormError(err);
+      return;
+    }
+    setFormError('');
+    const mismoNivel = p.triageLevel === level;
+    const cambio = mismoNivel
+      ? `${TRIAGE[level].label} (se actualizan los datos)`
+      : `${p.triageLevel ? triageInfo(p.triageLevel).label : 'Sin clasificar'} → ${TRIAGE[level].label}`;
+    Alert.alert(
+      mismoNivel ? 'Actualizar triage' : 'Cambiar triage',
+      `${p.name}\n${cambio}\n\nMotivo: ${motivo.trim()}\nDiagnóstico presuntivo: ${
+        diagnostico.trim() || '—'
+      }`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Confirmar', onPress: () => apply(p, level) },
+      ],
+    );
+  };
+
   return (
-    <Screen title="Nuevo Triage" icon="medkit-outline">
-      <ErrorBox message={error} />
-      <View style={s.form}>
-        <Field label="Nombre del paciente" icon="person-outline" value={name} onChangeText={setName} placeholder="Ej: Juan Pérez López" />
-        <Field label="Edad" icon="calendar-outline" value={age} onChangeText={setAge} placeholder="Ej: 45" keyboardType="number-pad" />
-        <Field label="Motivo de consulta" icon="document-text-outline" value={reason} onChangeText={setReason} placeholder="Describe los síntomas..." multiline />
-      </View>
-
-      <SectionTitle>Clasificación de triage</SectionTitle>
-      <View style={{ flexDirection: 'row', gap: 10, marginBottom: 32 }}>
-        {LEVELS.map((l) => {
-          const on = level === l.id;
+    <Screen title="Triage" icon="medkit-outline">
+      <Text style={{ fontSize: 13, color: colors.sub, marginBottom: 16 }}>
+        Toca un paciente, escribe el motivo y el diagnóstico presuntivo y elige
+        su nivel de triage. Si no tiene una admisión activa, se crea al
+        clasificarlo.
+      </Text>
+      <Field
+        value={q}
+        onChangeText={setQ}
+        placeholder="Buscar paciente..."
+        autoCapitalize="none"
+        style={{}}
+      />
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={{ marginBottom: 20, flexGrow: 0 }}
+      >
+        {FILTERS.map(([id, label]) => (
+          <Pressable
+            key={id || 'all'}
+            onPress={() => setNivel(id)}
+            style={{
+              paddingHorizontal: 16,
+              paddingVertical: 8,
+              borderRadius: 20,
+              marginRight: 8,
+              backgroundColor: nivel === id ? colors.teal : '#fff',
+            }}
+          >
+            <Text
+              style={{
+                fontWeight: '700',
+                fontSize: 12,
+                color: nivel === id ? '#fff' : colors.sub,
+              }}
+            >
+              {label}
+            </Text>
+          </Pressable>
+        ))}
+      </ScrollView>
+      <ErrorBox message={error || actionError} onRetry={reload} />
+      {loading && !data ? (
+        <Loading />
+      ) : list.length === 0 ? (
+        <Empty icon="medkit-outline" text="No hay pacientes para mostrar." />
+      ) : (
+        list.map(p => {
+          const t = triageInfo(p.triageLevel);
           return (
-            <Pressable key={l.id} onPress={() => setLevel(l.id)} style={[s.level, { borderColor: on ? l.color : colors.line, backgroundColor: on ? `${l.color}26` : '#fff' }]}>
-              <Ico name={l.icon} size={24} color={l.color} />
-              <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text, marginTop: 8 }}>{l.label}</Text>
-              <Text style={{ fontSize: 10, color: colors.sub, marginTop: 4, textAlign: 'center' }}>{l.desc}</Text>
-            </Pressable>
+            <Card key={p.id} accent={t.color} style={{ padding: 16 }}>
+              <Pressable onPress={() => toggle(p)}>
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    gap: 8,
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: 16,
+                      fontWeight: '700',
+                      color: colors.text,
+                      flex: 1,
+                    }}
+                  >
+                    {p.name}
+                  </Text>
+                  <Badge text={t.label} color={t.color} />
+                </View>
+                <Text style={{ fontSize: 13, color: colors.sub, marginTop: 4 }}>
+                  {p.age} años{p.status ? ` · ${statusLabel(p.status)}` : ''}
+                </Text>
+                {p.reason || p.diagnosticoPresuntivo ? (
+                  <View
+                    style={{
+                      marginTop: 8,
+                      padding: 8,
+                      borderRadius: 8,
+                      backgroundColor: colors.bg,
+                      gap: 2,
+                    }}
+                  >
+                    {p.reason ? (
+                      <Text style={{ fontSize: 12, color: colors.sub }}>
+                        Motivo: {p.reason}
+                      </Text>
+                    ) : null}
+                    {p.diagnosticoPresuntivo ? (
+                      <Text style={{ fontSize: 12, color: colors.sub }}>
+                        Dx presuntivo: {p.diagnosticoPresuntivo}
+                      </Text>
+                    ) : null}
+                  </View>
+                ) : null}
+              </Pressable>
+              {open === p.id && (
+                <View style={{ marginTop: 14 }}>
+                  <ErrorBox message={formError} />
+                  <Field
+                    label="Motivo de consulta *"
+                    icon="document-text-outline"
+                    value={motivo}
+                    onChangeText={setMotivo}
+                    placeholder="¿Por qué acude el paciente?"
+                    multiline
+                    maxLength={1000}
+                    style={{ height: 80, minHeight: 80 }}
+                  />
+                  <Field
+                    label={`Diagnóstico presuntivo${
+                      DIAGNOSTICO_OBLIGATORIO ? ' *' : ''
+                    }`}
+                    icon="fitness-outline"
+                    value={diagnostico}
+                    onChangeText={setDiagnostico}
+                    placeholder="Ej: Apendicitis aguda"
+                    multiline
+                    maxLength={1000}
+                    style={{ height: 80, minHeight: 80 }}
+                  />
+                  <Text
+                    style={{
+                      fontSize: 11,
+                      fontWeight: '700',
+                      color: colors.sub,
+                      textTransform: 'uppercase',
+                      marginBottom: 8,
+                    }}
+                  >
+                    Asignar nivel
+                  </Text>
+                  <View
+                    style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}
+                  >
+                    {Object.entries(TRIAGE).map(([id, info]) => {
+                      const cur = p.triageLevel === id;
+                      return (
+                        <Pressable
+                          key={id}
+                          disabled={busy}
+                          onPress={() => choose(p, id)}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Asignar nivel ${info.label}`}
+                          style={{
+                            paddingHorizontal: 12,
+                            paddingVertical: 9,
+                            borderRadius: 12,
+                            borderWidth: 2,
+                            borderColor: info.color,
+                            backgroundColor: cur ? info.color : '#fff',
+                            opacity: busy ? 0.6 : 1,
+                          }}
+                        >
+                          <Text
+                            style={{
+                              fontWeight: '700',
+                              fontSize: 12,
+                              color: cur ? '#fff' : info.color,
+                            }}
+                          >
+                            {info.label}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                </View>
+              )}
+            </Card>
           );
-        })}
-      </View>
-
-      <Button title="Registrar paciente" icon="save-outline" onPress={submit} loading={loading} />
-      <Button title="Cancelar" icon="close-circle-outline" variant="outline" color={colors.coral} onPress={() => navigation.goBack()} style={{ marginTop: 12 }} />
+        })
+      )}
     </Screen>
   );
 }
-
-const s = StyleSheet.create({
-  form: { backgroundColor: '#fff', borderRadius: 24, padding: 24, marginBottom: 24 },
-  level: { flex: 1, paddingVertical: 16, paddingHorizontal: 8, borderRadius: 16, borderWidth: 2, alignItems: 'center' },
-});

@@ -34,3 +34,13 @@ mismas reglas por rol y mismo flujo de uso.
 - `applicationId` / paquete `com.healthnexusapp`: es **permanente** una vez publicada la app. Decide antes de la primera subida.
 - El botón «¿Olvidaste tu contraseña?» del Login no hace nada (ya era así). Conviene implementarlo u ocultarlo antes de publicar.
 - La app usa el contrato anterior de la API para Pacientes y Triage (alta desde Triage). Si despliegas la API más reciente (alta completa en `POST /patients`), esas dos pantallas deben actualizarse.
+
+## Cuentas y recibos (HU-74, HU-75) — solo administrador
+| Cambio | Archivos |
+|---|---|
+| Pantallas **Cuentas** (lista con búsqueda, filtros y saldo pendiente) y **Estado de cuenta** (cargos, pagos con cancelados marcados, aviso si el saldo no cuadra) | `Cuentas.js`, `CuentaDetalle.js`, `App.js`, `Dashboard.js` |
+| **Descargar** el recibo a la carpeta Descargas y **compartirlo** (WhatsApp, correo…) en PDF; el archivo temporal se borra al terminar | `services/recibos.js` |
+| Cliente HTTP: `authHeaders`, `verificarTransporte` (HTTPS obligatorio también en descargas), `notificarNoAutorizado` | `api/client.js` |
+| Formato de dinero sin `Intl` (Hermes) | `utils/dinero.js` |
+| Librerías nuevas: `react-native-blob-util`, `react-native-share` (traen su propio FileProvider); permiso `WRITE_EXTERNAL_STORAGE` solo hasta Android 9 | `package.json`, `AndroidManifest.xml` |
+| Pruebas: 8 de pantallas y 7 del servicio de recibos | `__tests__/cuentas.test.js`, `__tests__/recibos.test.js` |

@@ -11,11 +11,14 @@ import Login from './src/screens/Login';
 import Dashboard from './src/screens/Dashboard';
 import Triage from './src/screens/Triage';
 import Patients from './src/screens/Patients';
+import NuevoPaciente from './src/screens/NuevoPaciente';
 import Internas from './src/screens/Internas';
 import Externas from './src/screens/Externas';
 import Hospitals from './src/screens/Hospitals';
 import Seguimiento from './src/screens/Seguimiento';
 import Auditoria from './src/screens/Auditoria';
+import Cuentas from './src/screens/Cuentas';
+import CuentaDetalle from './src/screens/CuentaDetalle';
 import SignosVitales from './src/screens/SignosVitales';
 import Medicacion from './src/screens/Medicacion';
 import Medicamentos from './src/screens/Medicamentos';
@@ -42,6 +45,7 @@ function Routes() {
             <>
               <Stack.Screen name="Triage" component={Triage} />
               <Stack.Screen name="Patients" component={Patients} />
+              <Stack.Screen name="NuevoPaciente" component={NuevoPaciente} />
               <Stack.Screen name="Internas" component={Internas} />
               <Stack.Screen name="Hospitals" component={Hospitals} />
               <Stack.Screen name="Seguimiento" component={Seguimiento} />
@@ -62,7 +66,13 @@ function Routes() {
               <Stack.Screen name="AlertasFarmacia" component={AlertasFarmacia} />
             </>
           )}
-          {can() && <Stack.Screen name="Auditoria" component={Auditoria} />}
+          {can() && (
+            <>
+              <Stack.Screen name="Cuentas" component={Cuentas} />
+              <Stack.Screen name="CuentaDetalle" component={CuentaDetalle} />
+              <Stack.Screen name="Auditoria" component={Auditoria} />
+            </>
+          )}
         </>
       )}
     </Stack.Navigator>

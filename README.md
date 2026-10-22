@@ -119,6 +119,7 @@ src/
 | Movimientos de inventario | farmacia registra · enfermería solo consulta |
 | Medicamentos, Alertas de inventario | farmacia |
 | Auditoría | solo administrador |
+| Cuentas, estado de cuenta y recibos en PDF (descargar y compartir) | solo administrador |
 
 El administrador ve todo. La API vuelve a validar los permisos en el servidor (los permisos coinciden con los de tu tabla `permissions`).
 Para probar enfermería y farmacia crea usuarios con `scripts/crear-usuario.js` (ver README de la API).
@@ -126,10 +127,10 @@ Para probar enfermería y farmacia crea usuarios con `scripts/crear-usuario.js` 
 ## Librerías nativas usadas
 `@react-navigation/native` + `native-stack`, `react-native-screens`, `react-native-safe-area-context`,
 `react-native-keychain` (token seguro), `@react-native-community/geolocation` (GPS),
-`react-native-vector-icons` (Ionicons; la fuente ya está enlazada en `android/app/build.gradle`).
+`react-native-blob-util` (descarga el recibo PDF con el token) y `react-native-share` (compartirlo), `react-native-vector-icons` (Ionicons; la fuente ya está enlazada en `android/app/build.gradle`).
 
 ## Pruebas
-`npm test` (utilidades). La lógica de la API se probó contra `healthnexus-api`.
+`npm test` (utilidades, emergencias, derivaciones, cuentas y recibos). La lógica de la API se probó contra `healthnexus-api`.
 
 ## Pendiente
 - Notificaciones push (Firebase) y escaneo de paciente con la cámara.

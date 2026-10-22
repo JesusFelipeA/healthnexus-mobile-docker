@@ -140,6 +140,15 @@ const MODULES = [
     roles: ['farmacia'],
   },
   {
+    id: 'Cuentas',
+    title: 'Cuentas',
+    icon: 'wallet-outline',
+    accent: 'teal',
+    tag: 'Cobros',
+    desc: 'Cargos, pagos y recibos',
+    roles: [],
+  },
+  {
     id: 'Auditoria',
     title: 'Auditoría',
     icon: 'clipboard-outline',
@@ -632,6 +641,8 @@ export default function Dashboard({ navigation }) {
                 </Text>
               </View>
             </View>
+
+            
           </Animated.View>
         </Animated.View>
 
