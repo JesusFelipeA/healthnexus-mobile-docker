@@ -1,4 +1,3 @@
-import { mensajeApi } from '../utils/errors';
 import React, { useState } from 'react';
 
 import { Alert, Text, View } from 'react-native';
@@ -26,6 +25,8 @@ import {
 } from '../components/ui';
 
 import { fmtDateTime } from '../utils/triage';
+import { esAnormal, revisarSignos } from '../utils/signosVitales';
+import { mensajeApi } from '../utils/errors';
 
 const EMPTY = {
   temperatura: '',
@@ -91,17 +92,26 @@ export default function SignosVitales() {
       notas: f.notas.trim() || undefined,
     };
 
-    if (
-      Object.entries(body).some(
-        ([k, v]) =>
-          k !== 'pacienteId' &&
-          k !== 'notas' &&
-          typeof v === 'number' &&
-          Number.isNaN(v),
-      )
-    )
-      return setError('Revisa los valores: deben ser números.');
+    const { error: invalido, avisos } = revisarSignos(body);
+    if (invalido) return setError(invalido);
+    setError('');
 
+    // HU-40: fuera del rango normal se avisa y se registra solo si la enfermera confirma
+    if (avisos.length > 0) {
+      Alert.alert(
+        'Valores fuera del rango normal',
+        `${avisos.join('\n')}\n\n¿Registrar de todos modos?`,
+        [
+          { text: 'Revisar', style: 'cancel' },
+          { text: 'Registrar', onPress: () => guardar(body) },
+        ],
+      );
+      return;
+    }
+    await guardar(body);
+  };
+
+  const guardar = async body => {
     setBusy(true);
     setError('');
 
@@ -118,24 +128,29 @@ export default function SignosVitales() {
     }
   };
 
-  const chip = (label, value, unit = '') =>
-    value === null || value === undefined || value === '' ? null : (
+  // Los valores fuera del rango normal se resaltan en rojo
+  const chip = (label, value, unit = '', clave = null) => {
+    if (value === null || value === undefined || value === '') return null;
+    const anormal = clave ? esAnormal(clave, value) : false;
+    return (
       <View
         key={label}
+        accessibilityLabel={anormal ? `${label} fuera del rango normal` : undefined}
         style={{
-          backgroundColor: colors.bg,
+          backgroundColor: anormal ? colors.dangerTint : colors.bg,
           paddingHorizontal: 10,
           paddingVertical: 6,
           borderRadius: 10,
         }}
       >
-        <Text style={{ fontSize: 11, color: colors.sub }}>{label}</Text>
-        <Text style={{ fontSize: 14, fontWeight: '800', color: colors.text }}>
+        <Text style={{ fontSize: 11, color: anormal ? colors.danger : colors.sub }}>{label}</Text>
+        <Text style={{ fontSize: 14, fontWeight: '800', color: anormal ? colors.danger : colors.text }}>
           {value}
           {unit}
         </Text>
       </View>
     );
+  };
 
   return (
     <Screen
@@ -344,12 +359,12 @@ export default function SignosVitales() {
                   gap: 8,
                 }}
               >
-                {chip('Temp.', s.temperatura, ' °C')}
-                {chip('Presión', s.presion)}
-                {chip('FC', s.fc, ' lpm')}
-                {chip('FR', s.fr, ' rpm')}
-                {chip('SpO₂', s.spo2, '%')}
-                {chip('Glucosa', s.glucosa)}
+                {chip('Temp.', s.temperatura, ' °C', 'temperatura')}
+                {chip('Presión', s.presion, '', 'presionArterial')}
+                {chip('FC', s.fc, ' lpm', 'frecuenciaCardiaca')}
+                {chip('FR', s.fr, ' rpm', 'frecuenciaRespiratoria')}
+                {chip('SpO₂', s.spo2, '%', 'saturacionOxigeno')}
+                {chip('Glucosa', s.glucosa, '', 'glucosa')}
                 {chip('Peso', s.peso, ' kg')}
                 {chip('Talla', s.talla, ' m')}
                 {chip('Dolor', s.dolor, '/10')}

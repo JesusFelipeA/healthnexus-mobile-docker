@@ -16,6 +16,13 @@ export const login = (email, password, fingerprint) =>
     { email, password },
     { 'X-Device-Fingerprint': fingerprint },
   );
+// Segundo paso del médico: el pinToken que devolvió /auth/login + el PIN de 4 dígitos
+export const verificarPin = (pinToken, pin, fingerprint) =>
+  http.post(
+    '/auth/pin',
+    { pinToken, pin },
+    { 'X-Device-Fingerprint': fingerprint },
+  );
 export const me = () => http.get('/auth/me');
 
 // Dashboard, pacientes y triage
@@ -72,7 +79,8 @@ export const getAlertasFarmacia = () => http.get('/farmacia/alertas');
 export const getSignos = pacienteId =>
   http.get(`/enfermeria/signos${qs({ pacienteId })}`);
 export const createSignos = data => http.post('/enfermeria/signos', data);
+// Se piden las 200 más recientes y la pantalla las pagina de 10 en 10
 export const getAdministraciones = pacienteId =>
-  http.get(`/enfermeria/administraciones${qs({ pacienteId })}`);
+  http.get(`/enfermeria/administraciones${qs({ pacienteId, limit: 200 })}`);
 export const createAdministracion = data =>
   http.post('/enfermeria/administraciones', data);

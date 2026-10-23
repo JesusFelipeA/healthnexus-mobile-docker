@@ -26,6 +26,33 @@ export function mensajeLogin(error) {
   return MENSAJES_ERROR.generico;
 }
 
+// Segundo paso del médico (POST /auth/pin)
+export const MENSAJES_ERROR_PIN = {
+  incorrecto: 'PIN incorrecto.',
+  expirado: 'La verificación expiró. Inicia sesión de nuevo.',
+  sinPin: 'Tu cuenta no tiene PIN asignado. Pide al administrador que lo genere.',
+};
+
+/**
+ * Mensaje controlado para un error al verificar el PIN.
+ * `expirado: true` indica que hay que volver a pedir correo y contraseña.
+ */
+export function mensajePin(error) {
+  const status = Number(error && error.status);
+  if (error && error.code === 'INSECURE_TRANSPORT') return { mensaje: MENSAJES_ERROR.conexionInsegura, expirado: false };
+  if (status === 0) return { mensaje: MENSAJES_ERROR.sinConexion, expirado: false };
+  if (status === 401) {
+    // La API distingue el PIN incorrecto del pinToken vencido; aquí solo se elige entre dos textos fijos.
+    const expirado = /expir/i.test(String((error && error.message) || ''));
+    return { mensaje: expirado ? MENSAJES_ERROR_PIN.expirado : MENSAJES_ERROR_PIN.incorrecto, expirado };
+  }
+  if (status === 400) return { mensaje: MENSAJES_ERROR_PIN.expirado, expirado: true };
+  if (status === 403) return { mensaje: MENSAJES_ERROR_PIN.sinPin, expirado: true };
+  if (status === 429) return { mensaje: MENSAJES_ERROR.demasiadosIntentos, expirado: false };
+  if (status >= 500) return { mensaje: MENSAJES_ERROR.servicio, expirado: false };
+  return { mensaje: MENSAJES_ERROR.generico, expirado: false };
+}
+
 /** Mensaje controlado para cualquier error de la API fuera del login. */
 export function mensajeApi(error) {
   if (error && error.code === 'INSECURE_TRANSPORT') return MENSAJES_ERROR.conexionInsegura;

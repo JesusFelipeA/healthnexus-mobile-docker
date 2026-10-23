@@ -1,7 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 
 import {
-  Alert,
   Animated,
   Easing,
   Pressable,
@@ -20,154 +19,13 @@ import { useAuth } from '../context/AuthContext';
 import useFetch from '../hooks/useFetch';
 
 import {
+  BotonMenu,
   Ico,
   ErrorBox,
   colors,
   shadow,
 } from '../components/ui';
-
-// ============================================================
-// MÓDULOS
-// ============================================================
-
-const MODULES = [
-  {
-    id: 'Triage',
-    title: 'Triage',
-    icon: 'medkit-outline',
-    accent: 'teal',
-    tag: 'Acceso rápido',
-    desc: 'Clasificación de pacientes',
-    roles: ['medico', 'enfermeria'],
-  },
-  {
-    id: 'Patients',
-    title: 'Pacientes',
-    icon: 'people-outline',
-    accent: 'teal',
-    tag: 'Registrados',
-    desc: 'Lista y prioridad',
-    roles: ['medico', 'enfermeria'],
-  },
-  {
-    id: 'SignosVitales',
-    title: 'Signos vitales',
-    icon: 'pulse-outline',
-    accent: 'coral',
-    tag: 'Enfermería',
-    desc: 'Toma y registro',
-    roles: ['enfermeria', 'medico'],
-  },
-  {
-    id: 'Medicacion',
-    title: 'Medicación',
-    icon: 'medkit-outline',
-    accent: 'teal',
-    tag: 'Enfermería',
-    desc: 'Administración a pacientes',
-    roles: ['enfermeria', 'medico'],
-  },
-  {
-    id: 'Internas',
-    title: 'Derivaciones internas',
-    icon: 'swap-horizontal-outline',
-    accent: 'teal',
-    tag: 'Gestión eficiente',
-    desc: 'Traslados entre áreas',
-    roles: ['medico', 'enfermeria'],
-  },
-  {
-    id: 'Externas',
-    title: 'Derivaciones externas',
-    icon: 'globe-outline',
-    accent: 'coral',
-    tag: 'Conectando',
-    desc: 'Traslados y referencias',
-    roles: ['medico'],
-  },
-  {
-    id: 'Hospitals',
-    title: 'Hospitales',
-    icon: 'location-outline',
-    accent: 'coral',
-    tag: 'Más opciones',
-    desc: 'Cercanos y camas',
-    roles: ['medico', 'enfermeria'],
-  },
-  {
-    id: 'Seguimiento',
-    title: 'Seguimiento',
-    icon: 'analytics-outline',
-    accent: 'amber',
-    tag: 'Tiempo real',
-    desc: 'Estado de pacientes',
-    roles: ['medico', 'enfermeria'],
-  },
-  {
-    id: 'Medicamentos',
-    title: 'Medicamentos',
-    icon: 'medical-outline',
-    accent: 'teal',
-    tag: 'Farmacia',
-    desc: 'Catálogo y stock',
-    roles: ['farmacia'],
-  },
-  {
-    id: 'Existencias',
-    title: 'Existencias',
-    icon: 'cube-outline',
-    accent: 'teal',
-    tag: 'Por lote',
-    desc: 'Lotes y caducidad',
-    roles: ['farmacia', 'enfermeria', 'medico'],
-  },
-  {
-    id: 'Movimientos',
-    title: 'Movimientos',
-    icon: 'swap-vertical-outline',
-    accent: 'amber',
-    tag: 'Inventario',
-    desc: 'Entradas, salidas y ajustes',
-    roles: ['farmacia', 'enfermeria'],
-  },
-  {
-    id: 'AlertasFarmacia',
-    title: 'Alertas',
-    icon: 'warning-outline',
-    accent: 'coral',
-    tag: 'Farmacia',
-    desc: 'Stock y caducidad',
-    roles: ['farmacia'],
-  },
-  {
-    id: 'Cuentas',
-    title: 'Cuentas',
-    icon: 'wallet-outline',
-    accent: 'teal',
-    tag: 'Cobros',
-    desc: 'Cargos, pagos y recibos',
-    roles: [],
-  },
-  {
-    id: 'Auditoria',
-    title: 'Auditoría',
-    icon: 'clipboard-outline',
-    accent: 'amber',
-    tag: 'Transparencia',
-    desc: 'Bitácora del sistema',
-    roles: [],
-  },
-];
-
-// ============================================================
-// COLORES
-// ============================================================
-
-const ACCENT = {
-  teal: [colors.teal, colors.mint],
-  coral: [colors.coral, colors.coralTint],
-  amber: [colors.amber, colors.amberTint],
-};
+import { useMenu } from '../navigation/menuContext';
 
 const ROL = {
   administrador: 'Administrador',
@@ -175,98 +33,6 @@ const ROL = {
   enfermeria: 'Enfermería',
   farmacia: 'Farmacia',
 };
-
-// ============================================================
-// COMPONENTE ANIMADO: MODULE CARD
-// ============================================================
-
-function ModuleCard({ module, index, onPress }) {
-  const anim = useRef(new Animated.Value(0)).current;
-  const pressAnim = useRef(new Animated.Value(1)).current;
-
-  useEffect(() => {
-    Animated.timing(anim, {
-      toValue: 1,
-      duration: 420,
-      delay: 320 + index * 55,
-      easing: Easing.out(Easing.cubic),
-      useNativeDriver: true,
-    }).start();
-  }, [anim, index]);
-
-  const [fg, bg] = ACCENT[module.accent];
-
-  const animatedStyle = {
-    opacity: anim,
-    transform: [
-      {
-        translateY: anim.interpolate({
-          inputRange: [0, 1],
-          outputRange: [28, 0],
-        }),
-      },
-      {
-        scale: anim.interpolate({
-          inputRange: [0, 1],
-          outputRange: [0.94, 1],
-        }),
-      },
-      { scale: pressAnim },
-    ],
-  };
-
-  const onPressIn = () => {
-    Animated.spring(pressAnim, {
-      toValue: 0.96,
-      useNativeDriver: true,
-      speed: 40,
-      bounciness: 0,
-    }).start();
-  };
-
-  const onPressOut = () => {
-    Animated.spring(pressAnim, {
-      toValue: 1,
-      useNativeDriver: true,
-      speed: 24,
-      bounciness: 6,
-    }).start();
-  };
-
-  return (
-    <Animated.View style={[s.moduleWrapper, animatedStyle]}>
-      <Pressable
-        style={s.moduleInner}
-        onPress={onPress}
-        onPressIn={onPressIn}
-        onPressOut={onPressOut}
-        android_ripple={{ color: 'rgba(0,0,0,0.05)' }}
-      >
-        <View style={[s.moduleIcon, { backgroundColor: bg }]}>
-          <Ico name={module.icon} size={22} color={fg} />
-        </View>
-
-        <Text style={s.moduleTitle} numberOfLines={2}>
-          {module.title}
-        </Text>
-
-        <Text style={s.moduleDesc} numberOfLines={2}>
-          {module.desc}
-        </Text>
-
-        <View style={[s.tag, { backgroundColor: bg }]}>
-          <Text style={[s.tagText, { color: fg }]}>
-            {module.tag}
-          </Text>
-        </View>
-      </Pressable>
-    </Animated.View>
-  );
-}
-
-// ============================================================
-// COMPONENTE ANIMADO: STAT ROW
-// ============================================================
 
 function StatRow({ row, index, isLast }) {
   const anim = useRef(new Animated.Value(0)).current;
@@ -323,8 +89,9 @@ function StatRow({ row, index, isLast }) {
 // DASHBOARD
 // ============================================================
 
-export default function Dashboard({ navigation }) {
-  const { user, can, logout } = useAuth();
+export default function Dashboard() {
+  const { user } = useAuth();
+  const menu = useMenu();
 
   const isFarmacia = user?.rol === 'farmacia';
 
@@ -348,10 +115,6 @@ export default function Dashboard({ navigation }) {
     lotesCaducados: 0,
   };
 
-  const visible = MODULES.filter(
-    (m) => !m.roles || can(...m.roles)
-  );
-
   const date = new Date().toLocaleDateString('es-MX', {
     day: 'numeric',
     month: 'long',
@@ -362,7 +125,6 @@ export default function Dashboard({ navigation }) {
   const topBarAnim = useRef(new Animated.Value(0)).current;
   const heroAnim = useRef(new Animated.Value(0)).current;
   const heroContentAnim = useRef(new Animated.Value(0)).current;
-  const sectionModulesAnim = useRef(new Animated.Value(0)).current;
   const sectionStatsAnim = useRef(new Animated.Value(0)).current;
   const statsBoxAnim = useRef(new Animated.Value(0)).current;
   const footerAnim = useRef(new Animated.Value(0)).current;
@@ -390,12 +152,6 @@ export default function Dashboard({ navigation }) {
           useNativeDriver: true,
         }),
       ]),
-      Animated.timing(sectionModulesAnim, {
-        toValue: 1,
-        duration: 400,
-        easing: Easing.out(Easing.quad),
-        useNativeDriver: true,
-      }),
       Animated.timing(sectionStatsAnim, {
         toValue: 1,
         duration: 400,
@@ -419,7 +175,6 @@ export default function Dashboard({ navigation }) {
     topBarAnim,
     heroAnim,
     heroContentAnim,
-    sectionModulesAnim,
     sectionStatsAnim,
     statsBoxAnim,
     footerAnim,
@@ -459,18 +214,6 @@ export default function Dashboard({ navigation }) {
     opacity: heroContentAnim,
   };
 
-  const sectionModulesStyle = {
-    opacity: sectionModulesAnim,
-    transform: [
-      {
-        translateY: sectionModulesAnim.interpolate({
-          inputRange: [0, 1],
-          outputRange: [12, 0],
-        }),
-      },
-    ],
-  };
-
   const sectionStatsStyle = {
     opacity: sectionStatsAnim,
     transform: [
@@ -497,21 +240,6 @@ export default function Dashboard({ navigation }) {
 
   const footerStyle = {
     opacity: footerAnim,
-  };
-
-  const confirmLogout = () => {
-    Alert.alert(
-      'Cerrar sesión',
-      '¿Quieres cerrar tu sesión?',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Cerrar sesión',
-          style: 'destructive',
-          onPress: logout,
-        },
-      ]
-    );
   };
 
   const rows = isFarmacia
@@ -579,7 +307,10 @@ export default function Dashboard({ navigation }) {
         ==================================================== */}
 
         <Animated.View style={[s.topBar, topBarStyle]}>
-          <View>
+          {/* Los módulos se abren desde la barra lateral */}
+          <BotonMenu style={s.menuButton} />
+
+          <View style={{ flex: 1 }}>
             <Text style={s.brandSmall}>
               Health<Text style={s.brandAccent}>Nexus</Text>
             </Text>
@@ -589,7 +320,9 @@ export default function Dashboard({ navigation }) {
 
           <Pressable
             style={s.profileButton}
-            onPress={confirmLogout}
+            onPress={menu ? menu.abrir : undefined}
+            accessibilityRole="button"
+            accessibilityLabel={`Perfil de ${user?.nombre || 'usuario'}`}
           >
             <Text style={s.profileInitial}>
               {(user?.nombre || 'U').charAt(0).toUpperCase()}
@@ -645,38 +378,6 @@ export default function Dashboard({ navigation }) {
             
           </Animated.View>
         </Animated.View>
-
-        {/* ====================================================
-            MODULES
-        ==================================================== */}
-
-        <Animated.View
-          style={[s.sectionHeader, sectionModulesStyle]}
-        >
-          <View>
-            <Text style={s.sectionTitle}>Módulos</Text>
-            <Text style={s.sectionSub}>
-              Accesos disponibles para ti
-            </Text>
-          </View>
-
-          <View style={s.moduleCount}>
-            <Text style={s.moduleCountText}>
-              {visible.length}
-            </Text>
-          </View>
-        </Animated.View>
-
-        <View style={s.grid}>
-          {visible.map((m, i) => (
-            <ModuleCard
-              key={m.id}
-              module={m}
-              index={i}
-              onPress={() => navigation.navigate(m.id)}
-            />
-          ))}
-        </View>
 
         {/* ====================================================
             DAILY SUMMARY
@@ -755,8 +456,19 @@ const s = StyleSheet.create({
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: 14,
     marginBottom: 22,
+  },
+
+  menuButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: colors.line,
   },
 
   brandSmall: {
@@ -883,25 +595,7 @@ const s = StyleSheet.create({
     marginTop: 2,
   },
 
-  logoutButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
 
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
-
-    borderRadius: 14,
-    paddingVertical: 11,
-    marginTop: 10,
-  },
-
-  logoutText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '700',
-    marginLeft: 7,
-  },
 
   /* ==========================================================
      SECTIONS
@@ -926,21 +620,7 @@ const s = StyleSheet.create({
     marginTop: 3,
   },
 
-  moduleCount: {
-    minWidth: 32,
-    height: 32,
-    paddingHorizontal: 9,
-    borderRadius: 12,
-    backgroundColor: colors.mint,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
 
-  moduleCountText: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: colors.tealDeep,
-  },
 
   date: {
     fontSize: 10,
@@ -959,50 +639,13 @@ const s = StyleSheet.create({
      MODULE GRID
   ========================================================== */
 
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    marginBottom: 32,
-  },
 
   /* Contenedor externo: animación, ancho, radio, sombra */
-  moduleWrapper: {
-    width: '48.2%',
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    marginBottom: 12,
-    ...shadow,
-  },
 
   /* Contenedor interno: padding y layout del contenido */
-  moduleInner: {
-    padding: 17,
-    minHeight: 174,
-  },
 
-  moduleIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 13,
-  },
 
-  moduleTitle: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: colors.text,
-    marginBottom: 4,
-  },
 
-  moduleDesc: {
-    fontSize: 11,
-    color: colors.sub,
-    lineHeight: 15,
-    marginBottom: 12,
-  },
 
   tag: {
     alignSelf: 'flex-start',

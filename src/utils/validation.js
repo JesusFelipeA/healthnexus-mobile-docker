@@ -48,3 +48,17 @@ export function validarLogin({ email, password } = {}) {
 function fallo(error) {
   return { ok: false, error, valores: null };
 }
+
+// PIN de seguridad del médico: exactamente 4 dígitos (igual que la web).
+export const PIN_LONGITUD = 4;
+export const MENSAJES_PIN = {
+  vacio: 'Ingresa tu PIN de seguridad.',
+  formato: 'El PIN debe tener exactamente 4 dígitos.',
+};
+
+export function validarPin(pin) {
+  const valor = typeof pin === 'string' ? pin.trim() : '';
+  if (!valor) return { ok: false, error: MENSAJES_PIN.vacio, valor: null };
+  if (!/^\d{4}$/.test(valor)) return { ok: false, error: MENSAJES_PIN.formato, valor: null };
+  return { ok: true, error: null, valor };
+}

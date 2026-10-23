@@ -10,7 +10,8 @@
     "test": "jest",
     "release:check": "node scripts/verificar-release.js",
     "release:aab": "node scripts/verificar-release.js && node scripts/gradle.js clean bundleRelease",
-    "release:apk": "node scripts/verificar-release.js && node scripts/gradle.js clean assembleRelease"
+    "release:apk": "node scripts/verificar-release.js && node scripts/gradle.js clean assembleRelease",
+    "test:coverage": "jest --coverage"
   },
   "dependencies": {
     "@react-native-community/geolocation": "^3.4.0",

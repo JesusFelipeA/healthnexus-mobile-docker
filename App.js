@@ -1,11 +1,11 @@
-import React from 'react';
-import { StatusBar, View } from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
+import React, { useState } from 'react';
+import { ActivityIndicator, StatusBar, View } from 'react-native';
+import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import EmergencyButton from './src/components/EmergencyButton';
-import SplashScreen from './src/components/SplashScreen';
+import { MenuProvider } from './src/navigation/MenuLateral';
 import { colors } from './src/components/ui';
 import Login from './src/screens/Login';
 import Dashboard from './src/screens/Dashboard';
@@ -27,12 +27,13 @@ import Movimientos from './src/screens/Movimientos';
 import AlertasFarmacia from './src/screens/AlertasFarmacia';
 
 const Stack = createNativeStackNavigator();
+const navigationRef = createNavigationContainerRef();
 
 // Las pantallas disponibles dependen del rol (la API vuelve a validar los permisos)
 function Routes() {
   const { user, loading, can } = useAuth();
   if (loading) {
-    return <SplashScreen />;
+    return <View style={{ flex: 1, justifyContent: 'center', backgroundColor: colors.bg }}><ActivityIndicator color={colors.teal} size="large" /></View>;
   }
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
@@ -80,15 +81,22 @@ function Routes() {
 }
 
 export default function App() {
+  // Ruta visible: la barra lateral la usa para resaltar el módulo actual
+  const [rutaActual, setRutaActual] = useState(null);
+  const actualizarRuta = () => setRutaActual(navigationRef.getCurrentRoute()?.name ?? null);
+
   return (
     <SafeAreaProvider>
       <StatusBar barStyle="dark-content" backgroundColor={colors.bg} />
       <AuthProvider>
         <View style={{ flex: 1 }}>
-          <NavigationContainer>
-            <Routes />
-          </NavigationContainer>
-          <EmergencyButton />
+          {/* La barra lateral se dibuja encima de las pantallas y del botón de emergencia */}
+          <MenuProvider navigationRef={navigationRef} rutaActual={rutaActual}>
+            <NavigationContainer ref={navigationRef} onReady={actualizarRuta} onStateChange={actualizarRuta}>
+              <Routes />
+            </NavigationContainer>
+            <EmergencyButton />
+          </MenuProvider>
         </View>
       </AuthProvider>
     </SafeAreaProvider>

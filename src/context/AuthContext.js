@@ -1,7 +1,19 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 import * as api from '../api';
 import { setAuthToken, setUnauthorizedHandler } from '../api/client';
-import { clearToken, getToken, saveToken } from '../services/secureStorage';
+import {
+  clearToken,
+  getDeviceFingerprint,
+  getToken,
+  saveToken,
+} from '../services/secureStorage';
 
 const AuthContext = createContext(null);
 export const useAuth = () => useContext(AuthContext);
@@ -23,24 +35,52 @@ export function AuthProvider({ children }) {
       const token = await getToken();
       if (token) {
         setAuthToken(token);
-        try { setUser(await api.me()); } catch { await logout(); }
+        try {
+          setUser(await api.me());
+        } catch {
+          await logout();
+        }
       }
       setLoading(false);
     })();
   }, [logout]);
 
-  const login = useCallback(async (email, password) => {
-    const res = await api.login(email, password);
+  const iniciarSesion = useCallback(async res => {
     setAuthToken(res.token);
     await saveToken(res.token);
     setUser(res.user);
   }, []);
 
-  const value = useMemo(() => ({
-    user, loading, login, logout,
-    // El administrador puede todo; sin argumentos = solo administrador
-    can: (...roles) => !!user && (user.rol === 'administrador' || roles.includes(user.rol)),
-  }), [user, loading, login, logout]);
+  // Devuelve { requierePin: true, pinToken } cuando la cuenta es de médico:
+  // la sesión no se abre hasta que verificarPin() valide el PIN.
+  const login = useCallback(async (email, password) => {
+    const fingerprint = await getDeviceFingerprint();
+    const res = await api.login(email, password, fingerprint);
+    if (res && res.requierePin) {
+      return { requierePin: true, pinToken: res.pinToken };
+    }
+    await iniciarSesion(res);
+    return { requierePin: false };
+  }, [iniciarSesion]);
+
+  const verificarPin = useCallback(async (pinToken, pin) => {
+    const fingerprint = await getDeviceFingerprint();
+    await iniciarSesion(await api.verificarPin(pinToken, pin, fingerprint));
+  }, [iniciarSesion]);
+
+  const value = useMemo(
+    () => ({
+      user,
+      loading,
+      login,
+      verificarPin,
+      logout,
+      // El administrador puede todo; sin argumentos = solo administrador
+      can: (...roles) =>
+        !!user && (user.rol === 'administrador' || roles.includes(user.rol)),
+    }),
+    [user, loading, login, verificarPin, logout],
+  );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

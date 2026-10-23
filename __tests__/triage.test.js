@@ -22,3 +22,20 @@ test('fmtDate', () => {
   expect(fmtDate('2026-10-06')).toBe('06/10/2026');
   expect(fmtDate(null)).toBe('');
 });
+
+// HU-43: los cinco niveles de triage tienen etiqueta y color propios
+test('todos los niveles de triage (rojo, naranja, amarillo, verde, azul)', () => {
+  const esperado = {
+    rojo: ['Crítico', '#DC2626'],
+    naranja: ['Muy urgente', '#EA580C'],
+    amarillo: ['Urgente', '#F59E0B'],
+    verde: ['Leve', '#16A34A'],
+    azul: ['No urgente', '#2563EB'],
+  };
+  Object.entries(esperado).forEach(([nivel, [label, color]]) => {
+    expect(triageInfo(nivel)).toEqual({ label, color });
+  });
+  expect(new Set(Object.values(esperado).map(([, c]) => c)).size).toBe(5);
+  expect(triageInfo(null).label).toBe('Sin clasificar');
+  expect(triageInfo(undefined).label).toBe('Sin clasificar');
+});

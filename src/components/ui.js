@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { ActivityIndicator, FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import * as Navegacion from '@react-navigation/native';
+import { useMenu } from '../navigation/menuContext';
+import { RUTAS_DE_MENU } from '../navigation/modulos';
 import Icon from 'react-native-vector-icons/Ionicons';
 export { default as Paginator } from './Paginator';
 
@@ -48,19 +50,42 @@ export const shadow = { shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 
 export const Ico = ({ name, size = 20, color = colors.text, style }) => <Icon name={name} size={size} color={color} style={style} />;
 
 // Pantalla con encabezado (botón volver + título) y contenido con scroll
+// useRoute puede no existir en los mocks de las pruebas
+const useRutaActual = typeof Navegacion.useRoute === 'function' ? Navegacion.useRoute : () => null;
+
+// En las pantallas que se abren desde la barra lateral, el encabezado muestra el botón de menú;
+// en las demás (detalle, alta) muestra "Volver".
 export function Screen({ title, icon, iconColor = colors.teal, children }) {
-  const nav = useNavigation();
+  const nav = Navegacion.useNavigation();
+  const route = useRutaActual();
+  const menu = useMenu();
+  const conMenu = !!menu && !!route && RUTAS_DE_MENU.has(route.name);
   return (
     <SafeAreaView style={s.screen} edges={['top']}>
       <View style={s.header}>
-        <Pressable onPress={() => nav.goBack()} hitSlop={12} style={s.back} accessibilityLabel="Volver">
-          <Ico name="chevron-back" size={24} />
-        </Pressable>
+        {conMenu ? (
+          <BotonMenu style={s.back} />
+        ) : (
+          <Pressable onPress={() => nav.goBack()} hitSlop={12} style={s.back} accessibilityLabel="Volver">
+            <Ico name="chevron-back" size={24} />
+          </Pressable>
+        )}
         {icon ? <Ico name={icon} size={22} color={iconColor} /> : null}
         <Text style={s.headerTitle} accessibilityRole="header">{title}</Text>
       </View>
       <ScrollView contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">{children}</ScrollView>
     </SafeAreaView>
+  );
+}
+
+/** Botón de hamburguesa que abre la barra lateral. No se muestra si no hay barra lateral. */
+export function BotonMenu({ color = colors.text, style }) {
+  const menu = useMenu();
+  if (!menu) return null;
+  return (
+    <Pressable onPress={menu.abrir} hitSlop={12} style={style} accessibilityRole="button" accessibilityLabel="Abrir menú">
+      <Ico name="menu-outline" size={26} color={color} />
+    </Pressable>
   );
 }
 

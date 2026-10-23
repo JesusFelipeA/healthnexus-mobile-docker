@@ -24,18 +24,20 @@ import {
   Field,
   colors,
 } from '../components/ui';
-
-import { validarLogin, LIMITES } from '../utils/validation';
-import { mensajeLogin } from '../utils/errors';
+import { LIMITES, PIN_LONGITUD, validarLogin, validarPin } from '../utils/validation';
+import { mensajeLogin, mensajePin } from '../utils/errors';
 
 export default function Login() {
-  const { login } = useAuth();
+  const { login, verificarPin } = useAuth();
   const insets = useSafeAreaInsets();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  // Segundo paso (solo médico): el pinToken dura 5 minutos en la API
+  const [pinToken, setPinToken] = useState(null);
+  const [pin, setPin] = useState('');
 
   /* ===== VALORES ANIMADOS ===== */
   const headerAnim = useRef(new Animated.Value(0)).current;  // header (fade + slide down)
@@ -142,12 +144,9 @@ export default function Login() {
 
   /* ===== SUBMIT ===== */
   const submit = async () => {
-    if (loading) return; // evita enviar dos veces la misma petición
-
-    // 1) Validación de entradas: nada se envía al servicio si los datos no son válidos
-    const check = validarLogin({ email, password });
-    if (!check.ok) {
-      setError(check.error);
+    const v = validarLogin({ email, password });
+    if (!v.ok) {
+      setError(v.error);
       return;
     }
 
@@ -155,11 +154,47 @@ export default function Login() {
     setError('');
 
     try {
-      await login(check.valores.email, check.valores.password);
+      const r = await login(v.valores.email, v.valores.password);
+      if (r && r.requierePin) {
+        setPin('');
+        setPinToken(r.pinToken);
+      }
     } catch (e) {
-      // 2) Manejo seguro de errores: mensaje controlado, nunca el texto crudo del servidor
+      setPassword('');
       setError(mensajeLogin(e));
-      setPassword(''); // la contraseña no se conserva en pantalla tras un intento fallido
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /* ===== PIN DEL MÉDICO ===== */
+  const volverACredenciales = (mensaje = '') => {
+    setPinToken(null);
+    setPin('');
+    setPassword('');
+    setError(mensaje);
+  };
+
+  const submitPin = async () => {
+    const v = validarPin(pin);
+    if (!v.ok) {
+      setError(v.error);
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+
+    try {
+      await verificarPin(pinToken, v.valor);
+    } catch (e) {
+      const { mensaje, expirado } = mensajePin(e);
+      if (expirado) {
+        volverACredenciales(mensaje);
+      } else {
+        setPin('');
+        setError(mensaje);
+      }
     } finally {
       setLoading(false);
     }
@@ -207,49 +242,82 @@ export default function Login() {
         <View style={s.content}>
           <Animated.View style={[s.card, cardStyle]}>
             <View style={s.cardHeader}>
-              <Text style={s.title}>Iniciar sesión</Text>
+              <Text style={s.title}>{pinToken ? 'Verificación de seguridad' : 'Iniciar sesión'}</Text>
               <Text style={s.description}>
-                Ingresa tus credenciales para continuar
+                {pinToken
+                  ? 'Ingresa tu PIN de 4 dígitos para continuar'
+                  : 'Ingresa tus credenciales para continuar'}
               </Text>
             </View>
 
-            <View style={s.form}>
-              <Field
-                label="Correo electrónico"
-                icon="mail-outline"
-                value={email}
-                onChangeText={setEmail}
-                placeholder="usuario@hospital.com"
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoCorrect={false}
-                textContentType="emailAddress"
-                autoComplete="email"
-                maxLength={LIMITES.emailMax}
-              />
+            {pinToken ? (
+              <View style={s.form}>
+                <Field
+                  label="PIN de seguridad"
+                  icon="keypad-outline"
+                  value={pin}
+                  onChangeText={t => setPin(t.replace(/\D/g, '').slice(0, PIN_LONGITUD))}
+                  placeholder="••••"
+                  keyboardType="number-pad"
+                  secureTextEntry
+                  maxLength={PIN_LONGITUD}
+                  autoFocus
+                  textContentType="oneTimeCode"
+                  accessibilityLabel="PIN de seguridad"
+                  onSubmitEditing={submitPin}
+                />
+              </View>
+            ) : (
+              <View style={s.form}>
+                <Field
+                  label="Correo electrónico"
+                  icon="mail-outline"
+                  value={email}
+                  onChangeText={setEmail}
+                  placeholder="usuario@hospital.com"
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  textContentType="emailAddress"
+                  autoComplete="email"
+                  maxLength={LIMITES.emailMax}
+                />
 
-              <Field
-                label="Contraseña"
-                icon="lock-closed-outline"
-                value={password}
-                onChangeText={setPassword}
-                placeholder="••••••••"
-                secureTextEntry
-                autoCapitalize="none"
-                autoCorrect={false}
-                textContentType="password"
-                autoComplete="password"
-                maxLength={LIMITES.passwordMax}
-              />
-            </View>
+                <Field
+                  label="Contraseña"
+                  icon="lock-closed-outline"
+                  value={password}
+                  onChangeText={setPassword}
+                  placeholder="••••••••"
+                  secureTextEntry
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  textContentType="password"
+                  autoComplete="password"
+                  maxLength={LIMITES.passwordMax}
+                />
+              </View>
+            )}
 
-            <TouchableOpacity
-              onPress={() => {}}
-              activeOpacity={0.7}
-              style={s.forgotWrap}
-            >
-              <Text style={s.forgot}>¿Olvidaste tu contraseña?</Text>
-            </TouchableOpacity>
+            {pinToken ? (
+              <TouchableOpacity
+                onPress={() => volverACredenciales()}
+                activeOpacity={0.7}
+                style={s.forgotWrap}
+                accessibilityRole="button"
+                accessibilityLabel="Usar otra cuenta"
+              >
+                <Text style={s.forgot}>Usar otra cuenta</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                onPress={() => {}}
+                activeOpacity={0.7}
+                style={s.forgotWrap}
+              >
+                <Text style={s.forgot}>¿Olvidaste tu contraseña?</Text>
+              </TouchableOpacity>
+            )}
 
             {error ? (
               <Animated.View style={[s.errorContainer, errorStyle]}>
@@ -257,12 +325,21 @@ export default function Login() {
               </Animated.View>
             ) : null}
 
-            <Button
-              title="Iniciar sesión"
-              icon="log-in-outline"
-              onPress={submit}
-              loading={loading}
-            />
+            {pinToken ? (
+              <Button
+                title="Verificar PIN"
+                icon="shield-checkmark-outline"
+                onPress={submitPin}
+                loading={loading}
+              />
+            ) : (
+              <Button
+                title="Iniciar sesión"
+                icon="log-in-outline"
+                onPress={submit}
+                loading={loading}
+              />
+            )}
 
             {/* Badge de seguridad */}
             <View style={s.securityBadge}>
