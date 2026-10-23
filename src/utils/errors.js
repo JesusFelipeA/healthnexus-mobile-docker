@@ -11,7 +11,11 @@ export const MENSAJES_ERROR = {
   servicio: 'El servicio no está disponible por ahora. Inténtalo más tarde.',
   conexionInsegura: 'Conexión no segura bloqueada. Contacta al administrador.',
   generico: 'No fue posible iniciar sesión.',
+  dispositivoBloqueado: 'Este teléfono está bloqueado. Pide al administrador que lo desbloquee en Dispositivos.',
 };
+
+// La API marca el rechazo de un dispositivo bloqueado con un mensaje fijo que menciona "bloqueado"
+const esDispositivoBloqueado = (error) => Number(error && error.status) === 403 && /bloquead/i.test(String((error && error.message) || ''));
 
 /** Devuelve el mensaje que se puede mostrar al usuario para un error de login. */
 export function mensajeLogin(error) {
@@ -20,6 +24,7 @@ export function mensajeLogin(error) {
   if (error && error.code === 'INSECURE_TRANSPORT') return MENSAJES_ERROR.conexionInsegura;
   if (status === 0) return MENSAJES_ERROR.sinConexion;
   if (status === 400 || status === 401) return MENSAJES_ERROR.credenciales;
+  if (esDispositivoBloqueado(error)) return MENSAJES_ERROR.dispositivoBloqueado;
   if (status === 403) return MENSAJES_ERROR.sinAcceso;
   if (status === 429) return MENSAJES_ERROR.demasiadosIntentos;
   if (status >= 500) return MENSAJES_ERROR.servicio;
@@ -47,6 +52,7 @@ export function mensajePin(error) {
     return { mensaje: expirado ? MENSAJES_ERROR_PIN.expirado : MENSAJES_ERROR_PIN.incorrecto, expirado };
   }
   if (status === 400) return { mensaje: MENSAJES_ERROR_PIN.expirado, expirado: true };
+  if (esDispositivoBloqueado(error)) return { mensaje: MENSAJES_ERROR.dispositivoBloqueado, expirado: true };
   if (status === 403) return { mensaje: MENSAJES_ERROR_PIN.sinPin, expirado: true };
   if (status === 429) return { mensaje: MENSAJES_ERROR.demasiadosIntentos, expirado: false };
   if (status >= 500) return { mensaje: MENSAJES_ERROR.servicio, expirado: false };

@@ -32,6 +32,8 @@ describe('validarPin y mensajePin', () => {
     expect(mensajePin({ status: 401, message: 'PIN incorrecto.' })).toEqual({ mensaje: MENSAJES_ERROR_PIN.incorrecto, expirado: false });
     expect(mensajePin({ status: 401, message: 'La verificación expiró. Inicia sesión de nuevo.' })).toEqual({ mensaje: MENSAJES_ERROR_PIN.expirado, expirado: true });
     expect(mensajePin({ status: 403 })).toEqual({ mensaje: MENSAJES_ERROR_PIN.sinPin, expirado: true });
+    expect(mensajePin({ status: 403, message: 'Este dispositivo está bloqueado. Pide al administrador que lo desbloquee.' }))
+      .toEqual({ mensaje: MENSAJES_ERROR.dispositivoBloqueado, expirado: true });
     expect(mensajePin({ status: 429 }).mensaje).toBe(MENSAJES_ERROR.demasiadosIntentos);
     expect(mensajePin({ status: 0 }).mensaje).toBe(MENSAJES_ERROR.sinConexion);
     expect(mensajePin({ status: 500, message: 'SQLSTATE detalle' }).mensaje).toBe(MENSAJES_ERROR.servicio);

@@ -17,3 +17,10 @@ describe('mensajeApi', () => {
   });
   test('error desconocido', () => expect(mensajeApi(new Error('boom'))).toBe('No fue posible completar la operación.'));
 });
+
+// Dispositivo bloqueado desde la web (Dispositivos → Bloquear)
+test('un 403 por dispositivo bloqueado muestra su propio mensaje; otro 403 sigue siendo "sin acceso"', () => {
+  const { mensajeLogin, MENSAJES_ERROR } = require('../src/utils/errors');
+  expect(mensajeLogin({ status: 403, message: 'Este dispositivo está bloqueado. Pide al administrador que lo desbloquee.' })).toBe(MENSAJES_ERROR.dispositivoBloqueado);
+  expect(mensajeLogin({ status: 403, message: 'No tienes permiso' })).toBe(MENSAJES_ERROR.sinAcceso);
+});
